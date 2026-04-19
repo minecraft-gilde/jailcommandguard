@@ -1,0 +1,37 @@
+plugins {
+    id 'java'
+}
+
+group = 'de.minecraftgilde'
+version = '1.0.0'
+
+def paperApiVersion = '1.21.4-R0.1-SNAPSHOT'
+def essentialsxVersion = '2.21.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url = 'https://repo.papermc.io/repository/maven-public/'
+    }
+    maven {
+        url = 'https://repo.essentialsx.net/releases/'
+    }
+}
+
+dependencies {
+    compileOnly "io.papermc.paper:paper-api:${paperApiVersion}"
+    compileOnly("net.essentialsx:EssentialsX:${essentialsxVersion}") {
+        exclude group: 'org.spigotmc', module: 'spigot-api'
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+}
