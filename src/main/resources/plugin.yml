@@ -1,0 +1,23 @@
+name: JailCommandGuard
+version: 1.0.0
+main: de.minecraftgilde.jailcommandguard.JailCommandGuardPlugin
+api-version: '1.20'
+folia-supported: true
+description: Blockiert Fremd-Commands für gejailte Spieler und arbeitet mit einer Whitelist.
+authors: [OpenAI]
+softdepend: [Essentials]
+
+commands:
+  jailcommandguard:
+    description: Verwaltet JailCommandGuard
+    usage: /<command> reload
+    aliases: [jcg]
+    permission: jailcommandguard.reload
+
+permissions:
+  jailcommandguard.bypass:
+    description: Umgeht die Command-Sperre im Jail
+    default: op
+  jailcommandguard.reload:
+    description: Erlaubt /jailcommandguard reload
+    default: op

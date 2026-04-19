@@ -1,0 +1,14 @@
+# Alle hier eingetragenen Befehle bleiben für gejailte Spieler erlaubt.
+# Wichtig: Trage auch Aliase ein, die du erlauben willst.
+allowed-commands:
+  - msg
+  - tell
+  - w
+  - r
+  - reply
+  - help
+
+blocked-message: "&cDu kannst diesen Befehl im Gefängnis nicht benutzen."
+
+# Entfernt nicht erlaubte Befehle zusätzlich aus der Befehlsliste / Tab-Completion.
+hide-disallowed-commands: true
