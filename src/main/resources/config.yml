@@ -1,4 +1,4 @@
-# Alle hier eingetragenen Befehle bleiben für gejailte Spieler erlaubt.
+# Alle hier eingetragenen Befehle bleiben fuer gejailte Spieler erlaubt.
 # Wichtig: Trage auch Aliase ein, die du erlauben willst.
 allowed-commands:
   - msg
@@ -8,7 +8,17 @@ allowed-commands:
   - reply
   - help
 
-blocked-message: "&cDu kannst diesen Befehl im Gefängnis nicht benutzen."
+blocked-message: "&cDu kannst diesen Befehl im Gefaengnis nicht benutzen."
 
-# Entfernt nicht erlaubte Befehle zusätzlich aus der Befehlsliste / Tab-Completion.
+# Entfernt nicht erlaubte Befehle zusaetzlich aus der Befehlsliste / Tab-Completion.
 hide-disallowed-commands: true
+
+jail-time-reminder:
+  # Schaltet die periodische Restzeit-Nachricht ein oder aus.
+  enabled: true
+  # Intervall in Minuten. Werte < 1 werden intern auf 1 gesetzt.
+  interval-minutes: 1
+  # Verfuegbare Platzhalter:
+  # %minutes% -> verbleibende Minuten (aufgerundet)
+  # %formatted_time% -> Restzeit als ganze Minuten (z. B. "5 Minuten")
+  message: "&eDu musst noch &6%formatted_time% &eim Gefaengnis bleiben."

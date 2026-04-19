@@ -1,7 +1,7 @@
 # JailCommandGuard
 
 Dieses Plugin blockiert fuer gejailte Spieler alle Commands ausser einer konfigurierbaren Whitelist.
-Es ist so geschrieben, dass es ohne Scheduler auskommt und `folia-supported: true` gesetzt ist.
+Zusätzlich kann es eine periodische Jail-Restzeit im Chat anzeigen und ist `folia-supported: true`.
 
 ## Voraussetzungen
 
@@ -66,5 +66,5 @@ Admins sollen alles duerfen:
 ## Hinweise
 
 - Wenn du einen Command erlauben willst, trage auch seine Aliase in `allowed-commands` ein.
+- Den Jail-Zeit-Hinweis steuerst du ueber `jail-time-reminder.enabled`, `interval-minutes` und `message`.
 - Das Plugin blockiert die Ausfuehrung zuverlaessig. Das Verstecken in der Befehlsliste haengt davon ab, wann der Command-Tree vom Server neu gesendet wird.
-
