@@ -76,6 +76,10 @@ Verfügbare Platzhalter für `jail-time-reminder.message`:
 
 ## Entwicklung
 
+### Dokumentation
+
+- Release-Guide: [docs/release.md](docs/release.md)
+
 ### Voraussetzungen
 
 - JDK 21

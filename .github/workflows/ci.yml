@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "v*"
   pull_request:
     branches:
       - main
@@ -30,6 +32,24 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
+      - name: Verify tag version matches build.gradle
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          GRADLE_VERSION="$(grep -E "^[[:space:]]*version[[:space:]]*=[[:space:]]*'[^']+'" build.gradle | sed -E "s/^[[:space:]]*version[[:space:]]*=[[:space:]]*'([^']+)'.*/\1/" | head -n1)"
+
+          if [ -z "$GRADLE_VERSION" ]; then
+            echo "Could not read version from build.gradle"
+            exit 1
+          fi
+
+          if [ "$TAG_VERSION" != "$GRADLE_VERSION" ]; then
+            echo "Version mismatch: tag=$TAG_VERSION build.gradle=$GRADLE_VERSION"
+            exit 1
+          fi
+
+          echo "Version check passed: $TAG_VERSION"
+
       - name: Build plugin
         run: ./gradlew --no-daemon clean build
 
@@ -40,3 +60,23 @@ jobs:
           path: build/libs/*.jar
           if-no-files-found: error
           retention-days: 14
+
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download built jar
+        uses: actions/download-artifact@v4
+        with:
+          name: jailcommandguard-jar
+          path: dist
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.jar
+          generate_release_notes: true
