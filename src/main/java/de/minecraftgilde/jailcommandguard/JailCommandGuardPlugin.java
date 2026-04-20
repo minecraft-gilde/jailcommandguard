@@ -3,12 +3,12 @@ package de.minecraftgilde.jailcommandguard;
 import com.destroystokyo.paper.event.player.PlayerPostRespawnEvent;
 import net.ess3.api.IEssentials;
 import net.ess3.api.events.JailStatusChangeEvent;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Statistic;
 import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -34,12 +34,13 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-public final class JailCommandGuardPlugin extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
+public final class JailCommandGuardPlugin extends JavaPlugin implements Listener {
 
     private static final long FORCE_JAIL_RESPAWN_WINDOW_MILLIS = 10L * 60_000L;
     private static final long[] POST_RESPAWN_ENFORCEMENT_DELAYS_TICKS = {1L, 5L, 20L};
     private static final long DEATH_FALLBACK_PERIOD_TICKS = 20L;
     private static final int DEATH_FALLBACK_MAX_ATTEMPTS = 600;
+    private static final LegacyComponentSerializer LEGACY_AMPERSAND_SERIALIZER = LegacyComponentSerializer.legacyAmpersand();
 
     private IEssentials essentials;
     private Set<String> allowedCommands = Set.of();
@@ -107,24 +108,18 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
                 .filter(label -> !label.isBlank())
                 .collect(Collectors.toCollection(HashSet::new));
 
-        this.blockedMessage = ChatColor.translateAlternateColorCodes(
-                '&',
-                getConfig().getString(
-                        "blocked-message",
-                        "&cDu kannst diesen Befehl im Gefängnis nicht benutzen."
-                )
+        this.blockedMessage = getConfig().getString(
+                "blocked-message",
+                "&cDu kannst diesen Befehl im Gefängnis nicht benutzen."
         );
 
         this.hideDisallowedCommands = getConfig().getBoolean("hide-disallowed-commands", true);
         this.jailTimeReminderEnabled = getConfig().getBoolean("jail-time-reminder.enabled", true);
         this.jailTimeReminderIntervalMinutes = Math.max(1, getConfig().getInt("jail-time-reminder.interval-minutes", 1));
         this.respawnDebugLogging = getConfig().getBoolean("debug-respawn.enabled", false);
-        this.jailTimeReminderMessage = ChatColor.translateAlternateColorCodes(
-                '&',
-                getConfig().getString(
-                        "jail-time-reminder.message",
-                        "&eDu musst noch &6%formatted_time% &eim Gefaengnis bleiben."
-                )
+        this.jailTimeReminderMessage = getConfig().getString(
+                "jail-time-reminder.message",
+                "&eDu musst noch &6%formatted_time% &eim Gefaengnis bleiben."
         );
 
         if (respawnDebugLogging) {
@@ -272,7 +267,7 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
         final String message = jailTimeReminderMessage
                 .replace("%minutes%", Long.toString(remainingMinutes))
                 .replace("%formatted_time%", formattedMinutes);
-        player.sendMessage(message);
+        player.sendMessage(colorize(message));
 
         final long intervalMillis = jailTimeReminderIntervalMinutes * 60_000L;
         nextReminderAtMillisByPlayer.put(playerId, now + intervalMillis);
@@ -425,7 +420,7 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
             event.setCancelled(true);
 
             if (blockedMessage != null && !blockedMessage.isBlank()) {
-                player.sendMessage(blockedMessage);
+                player.sendMessage(colorize(blockedMessage));
             }
         }
     }
@@ -750,10 +745,6 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
                 + ", cachedLocation=" + cachedLocationText);
     }
 
-    private org.bukkit.Location resolveJailLocationFor(final Player player) {
-        return resolveJailLocationFor(player, true);
-    }
-
     private org.bukkit.Location resolveJailLocationFor(final Player player, final boolean requireJailedState) {
         if (essentials == null) {
             debugRespawn("resolveJailLocationFor: essentials is null.");
@@ -812,7 +803,7 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
     public boolean onCommand(final CommandSender sender, final Command command, final String label, final String[] args) {
         if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
             if (!sender.hasPermission("jailcommandguard.reload")) {
-                sender.sendMessage(ChatColor.RED + "Dafür hast du keine Berechtigung.");
+                sender.sendMessage(Component.text("Dafür hast du keine Berechtigung.", NamedTextColor.RED));
                 return true;
             }
 
@@ -824,12 +815,16 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
                 refreshCommands(onlinePlayer);
             }
 
-            sender.sendMessage(ChatColor.GREEN + "JailCommandGuard wurde neu geladen.");
+            sender.sendMessage(Component.text("JailCommandGuard wurde neu geladen.", NamedTextColor.GREEN));
             return true;
         }
 
-        sender.sendMessage(ChatColor.YELLOW + "Verwendung: /" + label + " reload");
+        sender.sendMessage(Component.text("Verwendung: /" + label + " reload", NamedTextColor.YELLOW));
         return true;
+    }
+
+    private Component colorize(final String message) {
+        return LEGACY_AMPERSAND_SERIALIZER.deserialize(message == null ? "" : message);
     }
 
     @Override

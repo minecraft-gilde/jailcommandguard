@@ -1,6 +1,7 @@
 # Gradle
 .gradle/
 build/
+bin/
 
 # Legacy Maven output
 target/
@@ -16,4 +17,3 @@ target/
 # OS files
 .DS_Store
 Thumbs.db
-
