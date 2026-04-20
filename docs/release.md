@@ -24,6 +24,14 @@ v1.0.1
 
 - Die CI prueft das automatisch. Wenn Tag und `build.gradle`-Version nicht identisch sind, schlaegt der Workflow fehl.
 
+## Wichtige Reihenfolge
+
+1. Zuerst `version` in `build.gradle` anheben.
+2. Diese Aenderung committen und auf `main` pushen.
+3. Erst danach den passenden Tag `vX.Y.Z` erstellen und pushen.
+
+Wenn der Tag vor dem Versions-Commit gesetzt wird, passt der Tag oft nicht zum Stand von `build.gradle` und die Release-CI kann nicht wie erwartet laufen.
+
 ## Release Erstellen
 
 1. `version` in `build.gradle` aktualisieren.
