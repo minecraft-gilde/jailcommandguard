@@ -48,7 +48,7 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
     private boolean hideDisallowedCommands = true;
     private boolean jailTimeReminderEnabled = true;
     private int jailTimeReminderIntervalMinutes = 1;
-    private String jailTimeReminderMessage = "&eDu musst noch &6%formatted_time% &eim Gefaengnis bleiben.";
+    private String jailTimeReminderMessage = "&eDu musst noch &6%formatted_time% &eim Gefängnis bleiben.";
     private boolean respawnDebugLogging = false;
     private ScheduledTask jailTimeReminderTask;
     private final Map<UUID, Long> nextReminderAtMillisByPlayer = new ConcurrentHashMap<>();
@@ -119,7 +119,7 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
         this.respawnDebugLogging = getConfig().getBoolean("debug-respawn.enabled", false);
         this.jailTimeReminderMessage = getConfig().getString(
                 "jail-time-reminder.message",
-                "&eDu musst noch &6%formatted_time% &eim Gefaengnis bleiben."
+                "&eDu musst noch &6%formatted_time% &eim Gefaägnis bleiben."
         );
 
         if (respawnDebugLogging) {

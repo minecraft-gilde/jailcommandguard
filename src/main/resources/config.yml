@@ -8,7 +8,7 @@ allowed-commands:
   - reply
   - help
 
-blocked-message: "&cDu kannst diesen Befehl im Gefaengnis nicht benutzen."
+blocked-message: "&cDu kannst diesen Befehl im Gefängnis nicht benutzen."
 
 # Entfernt nicht erlaubte Befehle zusaetzlich aus der Befehlsliste / Tab-Completion.
 hide-disallowed-commands: true
@@ -21,7 +21,7 @@ jail-time-reminder:
   # Verfuegbare Platzhalter:
   # %minutes% -> verbleibende Minuten (aufgerundet)
   # %formatted_time% -> Restzeit als ganze Minuten (z. B. "5 Minuten")
-  message: "&eDu musst noch &6%formatted_time% &eim Gefaengnis bleiben."
+  message: "&eDu musst noch &6%formatted_time% &eim Gefängnis bleiben."
 
 debug-respawn:
   # Schaltet detaillierte Debug-Logs fuer Death/Respawn/Jail-Teleports ein.
