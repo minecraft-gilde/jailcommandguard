@@ -81,7 +81,7 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
         restartJailTimeReminderTask();
         sendJailTimeReminderToAllOnlinePlayers();
 
-        getLogger().info("JailCommandGuard v" + getDescription().getVersion() + " erfolgreich aktiviert.");
+        getLogger().info("JailCommandGuard v" + getPluginMeta().getVersion() + " erfolgreich aktiviert.");
     }
 
     @Override
