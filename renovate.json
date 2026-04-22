@@ -1,0 +1,58 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base"
+  ],
+  "timezone": "Europe/Berlin",
+  "schedule": [
+    "on the first day of the month"
+  ],
+  "dependencyDashboard": true,
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "rebaseWhen": "conflicted",
+  "labels": [
+    "dependencies"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": [
+        "gradle"
+      ],
+      "groupName": "gradle non-major updates",
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ]
+    },
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "github actions non-major updates",
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ]
+    },
+    {
+      "matchManagers": [
+        "gradle",
+        "github-actions"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "matchPackageNames": [
+        "io.papermc.paper:paper-api"
+      ],
+      "dependencyDashboardApproval": true,
+      "description": "Paper API updates are reported in the Dependency Dashboard and require manual approval before any PR is created."
+    }
+  ]
+}
