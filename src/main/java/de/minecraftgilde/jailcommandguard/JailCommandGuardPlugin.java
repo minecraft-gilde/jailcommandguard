@@ -176,6 +176,18 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
         }
     }
 
+    private void scheduleCommandRefresh(final Player player) {
+        if (!hideDisallowedCommands) {
+            return;
+        }
+
+        player.getScheduler().run(
+                this,
+                task -> refreshCommands(player),
+                null
+        );
+    }
+
     private void stopJailTimeReminderTask() {
         if (jailTimeReminderTask == null) {
             return;
@@ -452,6 +464,14 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
                 forceJailRespawnUntilMillisByPlayer.remove(affectedPlayerId);
                 forcedJailRespawnLocationByPlayer.remove(affectedPlayerId);
                 stopDeathFallbackTask(affectedPlayerId);
+                scheduleCommandRefresh(affectedPlayer);
+            }
+        }
+
+        if (event.getAffected() != null && event.getValue()) {
+            final Player affectedPlayer = event.getAffected().getBase();
+            if (affectedPlayer != null) {
+                scheduleCommandRefresh(affectedPlayer);
             }
         }
 
