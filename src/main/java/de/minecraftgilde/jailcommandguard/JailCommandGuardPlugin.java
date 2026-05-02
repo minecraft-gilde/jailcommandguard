@@ -2,7 +2,9 @@ package de.minecraftgilde.jailcommandguard;
 
 import com.destroystokyo.paper.event.player.PlayerPostRespawnEvent;
 import net.ess3.api.IEssentials;
+import net.ess3.api.events.AfkStatusChangeEvent;
 import net.ess3.api.events.JailStatusChangeEvent;
+import net.ess3.api.events.VanishStatusChangeEvent;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
@@ -40,22 +42,26 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
     private static final long[] POST_RESPAWN_ENFORCEMENT_DELAYS_TICKS = {1L, 5L, 20L};
     private static final long DEATH_FALLBACK_PERIOD_TICKS = 20L;
     private static final int DEATH_FALLBACK_MAX_ATTEMPTS = 600;
+    private static final long JAIL_SLEEP_IGNORE_SYNC_PERIOD_TICKS = 20L;
     private static final LegacyComponentSerializer LEGACY_AMPERSAND_SERIALIZER = LegacyComponentSerializer.legacyAmpersand();
 
     private IEssentials essentials;
     private Set<String> allowedCommands = Set.of();
     private String blockedMessage = "§cDu kannst diesen Befehl im Gefängnis nicht benutzen.";
     private boolean hideDisallowedCommands = true;
+    private boolean jailSleepIgnoreEnabled = true;
     private boolean jailTimeReminderEnabled = true;
     private int jailTimeReminderIntervalMinutes = 1;
     private String jailTimeReminderMessage = "&eDu musst noch &6%formatted_time% &eim Gefängnis bleiben.";
     private boolean respawnDebugLogging = false;
     private ScheduledTask jailTimeReminderTask;
+    private ScheduledTask jailSleepIgnoreSyncTask;
     private final Map<UUID, Long> nextReminderAtMillisByPlayer = new ConcurrentHashMap<>();
     private final Map<UUID, Long> forceJailRespawnUntilMillisByPlayer = new ConcurrentHashMap<>();
     private final Map<UUID, org.bukkit.Location> forcedJailRespawnLocationByPlayer = new ConcurrentHashMap<>();
     private final Map<UUID, ScheduledTask> deathFallbackTaskByPlayer = new ConcurrentHashMap<>();
     private final Map<UUID, Integer> deathFallbackAttemptsByPlayer = new ConcurrentHashMap<>();
+    private final Set<UUID> jailSleepIgnoredPlayers = ConcurrentHashMap.newKeySet();
 
     @Override
     public void onEnable() {
@@ -79,7 +85,9 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
                 .setTabCompleter(this);
 
         restartJailTimeReminderTask();
+        restartJailSleepIgnoreSyncTask();
         sendJailTimeReminderToAllOnlinePlayers();
+        syncJailSleepIgnoreForAllOnlinePlayers();
 
         getLogger().info("JailCommandGuard v" + getPluginMeta().getVersion() + " erfolgreich aktiviert.");
     }
@@ -87,6 +95,8 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
     @Override
     public void onDisable() {
         stopJailTimeReminderTask();
+        stopJailSleepIgnoreSyncTask();
+        resetManagedJailSleepIgnoredPlayers();
         nextReminderAtMillisByPlayer.clear();
         forceJailRespawnUntilMillisByPlayer.clear();
         forcedJailRespawnLocationByPlayer.clear();
@@ -114,6 +124,7 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
         );
 
         this.hideDisallowedCommands = getConfig().getBoolean("hide-disallowed-commands", true);
+        this.jailSleepIgnoreEnabled = getConfig().getBoolean("jail-sleep-ignore.enabled", true);
         this.jailTimeReminderEnabled = getConfig().getBoolean("jail-time-reminder.enabled", true);
         this.jailTimeReminderIntervalMinutes = Math.max(1, getConfig().getInt("jail-time-reminder.interval-minutes", 1));
         this.respawnDebugLogging = getConfig().getBoolean("debug-respawn.enabled", false);
@@ -186,6 +197,129 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
                 task -> refreshCommands(player),
                 null
         );
+    }
+
+    private void stopJailSleepIgnoreSyncTask() {
+        if (jailSleepIgnoreSyncTask == null) {
+            return;
+        }
+
+        jailSleepIgnoreSyncTask.cancel();
+        jailSleepIgnoreSyncTask = null;
+    }
+
+    private void restartJailSleepIgnoreSyncTask() {
+        stopJailSleepIgnoreSyncTask();
+
+        if (!jailSleepIgnoreEnabled) {
+            resetManagedJailSleepIgnoredPlayers();
+            return;
+        }
+
+        this.jailSleepIgnoreSyncTask = getServer().getGlobalRegionScheduler().runAtFixedRate(
+                this,
+                task -> syncJailSleepIgnoreForAllOnlinePlayers(),
+                1L,
+                JAIL_SLEEP_IGNORE_SYNC_PERIOD_TICKS
+        );
+    }
+
+    private void syncJailSleepIgnoreForAllOnlinePlayers() {
+        if (!jailSleepIgnoreEnabled) {
+            return;
+        }
+
+        for (final Player onlinePlayer : getServer().getOnlinePlayers()) {
+            scheduleJailSleepIgnoreSync(onlinePlayer);
+        }
+    }
+
+    private void scheduleJailSleepIgnoreSync(final Player player) {
+        player.getScheduler().run(
+                this,
+                task -> syncJailSleepIgnore(player),
+                null
+        );
+    }
+
+    private void scheduleJailSleepIgnoreState(final Player player, final boolean jailed) {
+        player.getScheduler().run(
+                this,
+                task -> applyJailSleepIgnoreState(player, jailed),
+                null
+        );
+    }
+
+    private void applyJailSleepIgnoreState(final Player player, final boolean jailed) {
+        if (!jailSleepIgnoreEnabled) {
+            resetJailSleepIgnore(player);
+            return;
+        }
+
+        if (jailed) {
+            setJailSleepIgnored(player);
+        } else {
+            resetJailSleepIgnore(player);
+        }
+    }
+
+    private void syncJailSleepIgnore(final Player player) {
+        if (!jailSleepIgnoreEnabled) {
+            resetJailSleepIgnore(player);
+            return;
+        }
+
+        if (isJailed(player)) {
+            setJailSleepIgnored(player);
+        } else {
+            resetJailSleepIgnore(player);
+        }
+    }
+
+    private void setJailSleepIgnored(final Player player) {
+        jailSleepIgnoredPlayers.add(player.getUniqueId());
+        player.setSleepingIgnored(true);
+    }
+
+    private void resetJailSleepIgnore(final Player player) {
+        if (!jailSleepIgnoredPlayers.remove(player.getUniqueId())) {
+            return;
+        }
+
+        if (!shouldEssentialsKeepSleepingIgnored(player)) {
+            player.setSleepingIgnored(false);
+        }
+    }
+
+    private void resetManagedJailSleepIgnoredPlayers() {
+        for (final Player onlinePlayer : getServer().getOnlinePlayers()) {
+            resetJailSleepIgnore(onlinePlayer);
+        }
+
+        jailSleepIgnoredPlayers.clear();
+    }
+
+    private boolean shouldEssentialsKeepSleepingIgnored(final Player player) {
+        if (essentials == null) {
+            return false;
+        }
+
+        final var user = essentials.getUser(player);
+        if (user == null) {
+            return false;
+        }
+
+        if (user.isAuthorized("essentials.sleepingignored")) {
+            return true;
+        }
+
+        final var settings = essentials.getSettings();
+        if (settings == null) {
+            return false;
+        }
+
+        return (user.isAfk() && settings.sleepIgnoresAfkPlayers())
+                || (user.isVanished() && settings.sleepIgnoresVanishedPlayers());
     }
 
     private void stopJailTimeReminderTask() {
@@ -457,6 +591,13 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void onJailStatusChange(final JailStatusChangeEvent event) {
+        if (event.getAffected() != null) {
+            final Player affectedPlayer = event.getAffected().getBase();
+            if (affectedPlayer != null) {
+                scheduleJailSleepIgnoreState(affectedPlayer, event.getValue());
+            }
+        }
+
         if (event.getAffected() != null && !event.getValue()) {
             final Player affectedPlayer = event.getAffected().getBase();
             if (affectedPlayer != null) {
@@ -499,10 +640,35 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
         );
     }
 
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
+    public void onAfkStatusChange(final AfkStatusChangeEvent event) {
+        if (event.getAffected() == null) {
+            return;
+        }
+
+        final Player affectedPlayer = event.getAffected().getBase();
+        if (affectedPlayer != null) {
+            scheduleJailSleepIgnoreSync(affectedPlayer);
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
+    public void onVanishStatusChange(final VanishStatusChangeEvent event) {
+        if (event.getAffected() == null) {
+            return;
+        }
+
+        final Player affectedPlayer = event.getAffected().getBase();
+        if (affectedPlayer != null) {
+            scheduleJailSleepIgnoreSync(affectedPlayer);
+        }
+    }
+
     @EventHandler
     public void onJoin(final PlayerJoinEvent event) {
         final Player player = event.getPlayer();
         refreshCommands(player);
+        scheduleJailSleepIgnoreSync(player);
 
         if (!isJailed(player)) {
             final UUID playerId = player.getUniqueId();
@@ -829,7 +995,9 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
 
             loadLocalConfig();
             restartJailTimeReminderTask();
+            restartJailSleepIgnoreSyncTask();
             sendJailTimeReminderToAllOnlinePlayers();
+            syncJailSleepIgnoreForAllOnlinePlayers();
 
             for (final Player onlinePlayer : getServer().getOnlinePlayers()) {
                 refreshCommands(onlinePlayer);

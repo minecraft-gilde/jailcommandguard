@@ -14,6 +14,7 @@ Zusätzlich kann das Plugin regelmäßig die verbleibende Jail-Zeit im Chat anze
 
 - Blockiert Befehle für gejailte Spieler auf Basis einer Whitelist.
 - Optionales Verstecken nicht erlaubter Befehle in Command-Liste/Tab-Completion.
+- Gejailte Spieler zählen optional nicht als Spieler, die schlafen müssen, um die Nacht zu überspringen.
 - Periodische Jail-Zeit-Erinnerung mit Platzhaltern.
 - Folia-Unterstützung (`folia-supported: true`).
 
@@ -46,6 +47,7 @@ Zusätzlich kann das Plugin regelmäßig die verbleibende Jail-Zeit im Chat anze
 | `allowed-commands` | `msg, tell, w, r, reply, help` | Erlaubte Befehle für gejailte Spieler |
 | `blocked-message` | `&cDu kannst diesen Befehl im Gefängnis nicht benutzen.` | Nachricht bei blockiertem Befehl |
 | `hide-disallowed-commands` | `true` | Entfernt nicht erlaubte Befehle aus Command-Liste/Tab-Completion |
+| `jail-sleep-ignore.enabled` | `true` | Gejailte Spieler werden beim Nacht-Ueberspringen nicht als wach benoetigte Spieler gezaehlt |
 | `jail-time-reminder.enabled` | `true` | Aktiviert periodische Restzeit-Nachrichten |
 | `jail-time-reminder.interval-minutes` | `1` | Intervall der Restzeit-Nachricht in Minuten (`<1` wird intern zu `1`) |
 | `jail-time-reminder.message` | `&eDu musst noch &6%formatted_time% &eim Gefängnis bleiben.` | Chat-Nachricht mit Platzhaltern |

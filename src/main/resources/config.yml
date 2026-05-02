@@ -13,6 +13,11 @@ blocked-message: "&cDu kannst diesen Befehl im Gefängnis nicht benutzen."
 # Entfernt nicht erlaubte Befehle zusaetzlich aus der Befehlsliste / Tab-Completion.
 hide-disallowed-commands: true
 
+# Gejailte Spieler zählen nicht als Spieler, die schlafen müssen, um die Nacht zu überspringen.
+# Beim Entlassen wird EssentialsX-AFK/Vanish/essentials.sleepingignored berücksichtigt.
+jail-sleep-ignore:
+  enabled: true
+
 jail-time-reminder:
   # Schaltet die periodische Restzeit-Nachricht ein oder aus.
   enabled: true

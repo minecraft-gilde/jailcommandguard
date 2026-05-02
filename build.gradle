@@ -3,16 +3,10 @@ plugins {
 }
 
 group = 'de.minecraftgilde'
-version = '1.0.5'
+version = '1.0.6'
 
 def paperApiVersion = '1.21.4-R0.1-SNAPSHOT'
 def essentialsxVersion = '2.21.2'
-
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
-    }
-}
 
 repositories {
     mavenCentral()
