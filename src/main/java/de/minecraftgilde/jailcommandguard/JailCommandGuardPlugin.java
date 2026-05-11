@@ -457,6 +457,19 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
         return Math.max(0L, expireTime - now);
     }
 
+    private boolean hasTimedJailExpired(final Player player) {
+        if (essentials == null) {
+            return false;
+        }
+
+        final var user = essentials.getUser(player);
+        if (user == null || !user.isJailed() || user.getJailTimeout() <= 0L) {
+            return false;
+        }
+
+        return getRemainingJailMillis(player) <= 0L;
+    }
+
     private void debugRespawn(final String message) {
         if (!respawnDebugLogging) {
             return;
@@ -498,6 +511,12 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
         deathFallbackAttemptsByPlayer.remove(playerId);
     }
 
+    private void clearForcedJailRespawnState(final UUID playerId) {
+        forceJailRespawnUntilMillisByPlayer.remove(playerId);
+        forcedJailRespawnLocationByPlayer.remove(playerId);
+        stopDeathFallbackTask(playerId);
+    }
+
     private void startDeathFallbackTask(final UUID playerId) {
         stopDeathFallbackTask(playerId);
         deathFallbackAttemptsByPlayer.put(playerId, 0);
@@ -524,7 +543,7 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
                         final org.bukkit.Location jailLocation = getBestJailRespawnLocation(player);
                         if (jailLocation != null && isNear(player.getLocation(), jailLocation, 3.0D)) {
                             debugRespawn("deathFallback: player reached jail location, stopping fallback.");
-                            stopDeathFallbackTask(playerId);
+                            clearForcedJailRespawnState(playerId);
                             task.cancel();
                             return;
                         }
@@ -602,9 +621,7 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
             final Player affectedPlayer = event.getAffected().getBase();
             if (affectedPlayer != null) {
                 final UUID affectedPlayerId = affectedPlayer.getUniqueId();
-                forceJailRespawnUntilMillisByPlayer.remove(affectedPlayerId);
-                forcedJailRespawnLocationByPlayer.remove(affectedPlayerId);
-                stopDeathFallbackTask(affectedPlayerId);
+                clearForcedJailRespawnState(affectedPlayerId);
                 scheduleCommandRefresh(affectedPlayer);
             }
         }
@@ -672,9 +689,7 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
 
         if (!isJailed(player)) {
             final UUID playerId = player.getUniqueId();
-            forceJailRespawnUntilMillisByPlayer.remove(playerId);
-            forcedJailRespawnLocationByPlayer.remove(playerId);
-            stopDeathFallbackTask(playerId);
+            clearForcedJailRespawnState(playerId);
         }
 
         player.getScheduler().run(
@@ -705,9 +720,7 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
             }
             startDeathFallbackTask(playerId);
         } else {
-            forceJailRespawnUntilMillisByPlayer.remove(playerId);
-            forcedJailRespawnLocationByPlayer.remove(playerId);
-            stopDeathFallbackTask(playerId);
+            clearForcedJailRespawnState(playerId);
             debugRespawn("onDeath: player not jailed, forced window cleared.");
         }
     }
@@ -775,6 +788,12 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
                 + ", from=" + formatLocation(event.getFrom())
                 + ", to=" + formatLocation(event.getTo()));
 
+        if (hasTimedJailExpired(player)) {
+            debugRespawn("onForcedRespawnTeleport(HIGHEST): timed jail expired, allowing teleport and clearing force state.");
+            clearForcedJailRespawnState(playerId);
+            return;
+        }
+
         final org.bukkit.Location jailLocation = getBestJailRespawnLocation(player);
         if (jailLocation == null) {
             debugRespawn("onForcedRespawnTeleport(HIGHEST): no jail location available.");
@@ -787,6 +806,13 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
 
     private boolean shouldForceJailRespawn(final Player player) {
         final UUID playerId = player.getUniqueId();
+        if (hasTimedJailExpired(player)) {
+            debugRespawn("shouldForceJailRespawn: player=" + player.getName()
+                    + " has served the timed jail sentence, clearing forced window.");
+            clearForcedJailRespawnState(playerId);
+            return false;
+        }
+
         if (isJailed(player)) {
             debugRespawn("shouldForceJailRespawn: player=" + player.getName() + " is currently jailed.");
             return true;
@@ -800,8 +826,7 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
     private boolean isForcedRespawnWindowActive(final UUID playerId) {
         final long forcedUntilMillis = forceJailRespawnUntilMillisByPlayer.getOrDefault(playerId, 0L);
         if (forcedUntilMillis <= System.currentTimeMillis()) {
-            forceJailRespawnUntilMillisByPlayer.remove(playerId);
-            forcedJailRespawnLocationByPlayer.remove(playerId);
+            clearForcedJailRespawnState(playerId);
             return false;
         }
 
@@ -836,8 +861,7 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
     private void schedulePlayerEnforcementTask(final UUID playerId, final long delayTicks) {
         final Player player = getServer().getPlayer(playerId);
         if (player == null || !player.isOnline()) {
-            forceJailRespawnUntilMillisByPlayer.remove(playerId);
-            forcedJailRespawnLocationByPlayer.remove(playerId);
+            clearForcedJailRespawnState(playerId);
             return;
         }
 
@@ -867,8 +891,7 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
     private void enforceJailTeleportAfterRespawn(final UUID playerId) {
         final Player player = getServer().getPlayer(playerId);
         if (player == null || !player.isOnline()) {
-            forceJailRespawnUntilMillisByPlayer.remove(playerId);
-            forcedJailRespawnLocationByPlayer.remove(playerId);
+            clearForcedJailRespawnState(playerId);
             return;
         }
 
@@ -883,9 +906,12 @@ public final class JailCommandGuardPlugin extends JavaPlugin implements Listener
         }
 
         debugRespawn("enforceJailTeleportAfterRespawn: teleportAsync to " + formatLocation(jailLocation));
-        player.teleportAsync(jailLocation.clone()).thenAccept(success ->
-                debugRespawn("enforceJailTeleportAfterRespawn: teleport result=" + success)
-        );
+        player.teleportAsync(jailLocation.clone()).thenAccept(success -> {
+            debugRespawn("enforceJailTeleportAfterRespawn: teleport result=" + success);
+            if (success) {
+                clearForcedJailRespawnState(playerId);
+            }
+        });
     }
 
     private void logRespawnFailureState(final Player player, final String phase) {
